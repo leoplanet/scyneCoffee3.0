@@ -37,6 +37,8 @@ export default function CartModal({
   const order: Order = {
     items: cartItems,
     customerName: customerName,
+    total: 0,
+    status: "pending",
     isCompleted: false,
     createdAt: now,
     updatedAt: now,
@@ -66,7 +68,7 @@ export default function CartModal({
       return;
     }
     setSubmitWarning("");
-    submitOrder(order);
+    submitOrder(order, customerName);
     setCustomerName("");
     onClose();
     handleConfirmedModal();

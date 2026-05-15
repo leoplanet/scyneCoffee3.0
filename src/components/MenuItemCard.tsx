@@ -1,119 +1,153 @@
 import type { Coffee } from "../types/coffee";
+import { Card, CardMedia, Box, Typography, Chip, Stack, IconButton } from "@mui/material";
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 
 export default function MenuItemCard(props: {
   coffee: Coffee;
-  onSelect: (coffee: Coffee) => void;
+  onSelect: () => void;
+  onQuickAdd?: () => void;
   maxPopularity?: number;
 }) {
-  const { name, description, imageUrl, popularity, isAvailable, tags } =
-    props.coffee;
-  const onSelect = props.onSelect;
-  const coffeeItem = props.coffee;
+  const { name, description, imageUrl, popularity, isAvailable, tags } = props.coffee;
   const maxPopularity = props.maxPopularity || 1;
-  //original solution
-  // const raw = (popularity / maxPopularity) * 5;
-  //second solution
-  const raw = (Math.sqrt(popularity) / Math.sqrt(maxPopularity)) * 5;
-  //third solution
-  // const diff = maxPopularity - popularity;
-  // const adjusted = Math.sqrt(diff) + popularity;
-  // const maxAdjusted = Math.sqrt(0) + maxPopularity; // = maxPopularity
-  // const raw = (adjusted / maxAdjusted) * 5;
 
+  const raw = (Math.sqrt(popularity) / Math.sqrt(maxPopularity)) * 5;
   const starNumber = popularity > 0 ? Math.max(1, Math.ceil(raw)) : 0;
+  const stars = "★".repeat(starNumber) + "☆".repeat(5 - starNumber);
+
   return (
-    <div
-      style={{
-        margin: "5px",
-        padding: "5px",
-        cursor: "pointer",
+    <Card
+      sx={{
+        height: "100%",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
+        transition: "transform 0.2s, box-shadow 0.2s",
+        cursor: isAvailable ? "pointer" : "default",
+        opacity: isAvailable ? 1 : 0.6,
+        "&:hover": {
+          transform: isAvailable ? "translateY(-4px)" : "none",
+          boxShadow: isAvailable ? "0 8px 24px rgba(0,0,0,0.3)" : "none",
+        },
       }}
-      onClick={() => {
+      onClick={(e) => {
+        // Don't trigger card click when clicking the quick-add button
+        if ((e.target as HTMLElement).closest("[data-quick-add]")) return;
         if (isAvailable) {
-          onSelect(coffeeItem);
-        } else {
-          alert("This item is currently unavailable.");
+          props.onSelect();
         }
       }}
     >
-      <div style={{ position: "relative" }}>
-        {!props.coffee.isAvailable && (
-          <div
-            style={{
-              position: "absolute",
-              right: "3px",
-              top: "3px",
-              color: "white",
-              border: "1px white solid",
-              padding: "1px",
-              borderRadius: "3px",
-              backgroundColor: "rgba(0,0,0, 0.5)",
-            }}
-          >
-            Unavailable
-          </div>
-        )}
-        <img
-          src={imageUrl}
+      {/* Image */}
+      <Box sx={{ position: "relative" }}>
+        <CardMedia
+          component="img"
+          image={imageUrl || "/placeholder-coffee.jpg"}
           alt={name}
-          style={{
-            width: "100%",
-            height: "200px",
-            zIndex: "1",
+          sx={{
+            height: 180,
             objectFit: "cover",
           }}
         />
-      </div>
-      <div>
-        <h2
-          style={{
-            fontFamily: "monospace",
-            marginBottom: "4px",
-            fontSize: "22px",
-          }}
-        >
-          {name}
-        </h2>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "3px",
-          }}
-        >
-          <p>Popularity: </p>
-          <p>{"★".repeat(starNumber) + "☆".repeat(5 - starNumber)}</p>
-        </div>
+        {!isAvailable && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Chip label="Unavailable" size="small" sx={{ bgcolor: "rgba(0,0,0,0.7)", color: "white" }} />
+          </Box>
+        )}
 
-        <p
-          style={{
-            textAlign: "justify",
-            marginBottom: "5px",
-            fontSize: "13px",
+        {/* Quick Add Button */}
+        {isAvailable && (
+          <IconButton
+            data-quick-add
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onQuickAdd?.();
+            }}
+            size="small"
+            sx={{
+              position: "absolute",
+              bottom: 8,
+              right: 8,
+              bgcolor: "primary.main",
+              color: "white",
+              "&:hover": { bgcolor: "primary.dark" },
+            }}
+          >
+            <AddCircleOutlineIcon />
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Content */}
+      <Box sx={{ p: 2, flex: 1, display: "flex", flexDirection: "column" }}>
+        <Typography variant="h6" sx={{ fontSize: "1rem", fontWeight: 600, mb: 0.5 }}>
+          {name}
+        </Typography>
+
+        {/* Popularity Stars */}
+        {popularity > 0 && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: "gold",
+              mb: 1,
+              fontSize: "0.85rem",
+              letterSpacing: 1,
+            }}
+          >
+            {stars}
+          </Typography>
+        )}
+
+        {/* Description */}
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mb: 1.5,
+            flex: 1,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            fontSize: "0.8rem",
           }}
         >
           {description}
-        </p>
-      </div>
-      <div style={{ marginTop: "auto", fontSize: "12px" }}>
-        {tags &&
-          tags.length > 0 &&
-          tags.slice(0, 2).map((tag, index) => (
-            <span
-              key={index}
-              style={{
-                border: "1px solid #ffffffff",
-                padding: "2px 5px",
-                borderRadius: "5px",
-                marginRight: "5px",
-              }}
-            >
-              {tag}
-            </span>
-          ))}
-      </div>
-    </div>
+        </Typography>
+
+        {/* Tags */}
+        {tags && tags.length > 0 && (
+          <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+            {tags.slice(0, 3).map((tag, index) => (
+              <Chip
+                key={index}
+                label={tag}
+                size="small"
+                variant="outlined"
+                sx={{
+                  fontSize: "0.65rem",
+                  height: 20,
+                  borderColor: "rgba(255,255,255,0.15)",
+                  color: "text.secondary",
+                }}
+              />
+            ))}
+          </Stack>
+        )}
+      </Box>
+    </Card>
   );
 }

@@ -25,34 +25,35 @@
 ## Phase 1 — Frictionless Ordering ★
 
 ### Name-First Landing
-- [ ] Redesign HomePage: "What's your name?" input + Enter button
-- [ ] Store name in session (localStorage + pass to order flow)
-- [ ] On name submit, check Firestore `users` collection for matching name
-- [ ] If match found, fetch last order and show "Order Again?" banner
-- [ ] If no match, proceed to menu with name pre-filled
+- [x] Redesign HomePage: "What's your name?" input + Enter button
+- [x] Store name in session (localStorage + pass to order flow)
+- [x] On name submit, check Firestore `customers` collection for matching name
+- [x] If match found, fetch last order and show "Order Again?" banner
+- [x] If no match, proceed to menu with name pre-filled
+- [ ] "Browse menu without a name" guest link
 
 ### Guest Ordering
-- [ ] Remove login requirement from menu/order routes
-- [ ] Update order creation to accept `customerName` (no userId required)
+- [x] Remove login requirement from menu/order routes
+- [x] Update order creation to accept `customerName` (no userId required)
 - [ ] Update Firestore security rules doc to allow guest writes
 - [ ] Add optional login prompt: "Create an account to save your orders" after first order
 
 ### Last Order & Reorder
-- [ ] Create `users` Firestore collection schema
-- [ ] On order complete, upsert user doc with `lastOrderId`
-- [ ] On name recognition, fetch `lastOrderId` → fetch that order's items
-- [ ] "Order Again" button → adds all last-order items to cart in one click
-- [ ] Show last order summary card on menu page (collapsible)
+- [x] Create `customers` Firestore collection schema (upserted on order)
+- [x] On order complete, upsert customer doc with `lastOrderId`
+- [x] On name recognition, fetch `lastOrderId` → fetch that order's items
+- [x] "Order Again" button → adds all last-order items to cart in one click
+- [x] Show last order summary card on menu page (collapsible)
 
 ### Cart Improvements
-- [ ] Persistent cart: save to localStorage on every change
-- [ ] Restore cart from localStorage on app load
-- [ ] Replace CartModal with CartDrawer (MUI Drawer, right-side slide-out)
-- [ ] Cart badge in NavBar showing item count (always visible)
-- [ ] Quick-add "+" button on each MenuItemCard (adds default to cart)
+- [x] Persistent cart: save to localStorage on every change
+- [x] Restore cart from localStorage on app load
+- [x] Replace CartModal with CartDrawer (MUI Drawer, right-side slide-out)
+- [x] Cart badge in NavBar showing item count (always visible)
+- [x] Quick-add "+" button on each MenuItemCard (adds default to cart)
 - [ ] Inline customization drawer (tap item → slide-out panel for size/milk/extras)
 - [ ] Cart quantity stepper (increase/decrease without re-opening item)
-- [ ] Clear cart confirmation
+- [x] Clear cart option
 
 ### Order Confirmation
 - [ ] After order placed, show confirmation screen with large order number
@@ -61,8 +62,8 @@
 - [ ] "Order Another" button → clears cart, back to menu
 
 ### Real-Time
-- [ ] Replace `getDocs` → `onSnapshot` in MenuPage
-- [ ] Replace `getDocs` → `onSnapshot` in OrderPage
+- [x] Replace `getDocs` → `onSnapshot` in MenuPage
+- [x] Replace `getDocs` → `onSnapshot` in OrderPage
 - [ ] Replace `getDocs` → `onSnapshot` in AdminPage
 - [ ] Replace `getDocs` → `onSnapshot` in StatisticPage
 - [ ] Replace `getDocs` → `onSnapshot` in News page
@@ -72,8 +73,8 @@
 ## Phase 2 — Order Status & Communication
 
 ### Order Status
-- [ ] Define status enum: `pending` | `preparing` | `ready` | `completed`
-- [ ] Add `status` field to order creation (defaults to `pending`)
+- [x] Define status enum: `pending` | `preparing` | `ready` | `completed`
+- [x] Add `status` field to order creation (defaults to `pending`)
 - [ ] Add `estimatedReadyTime` calculation (based on queue position + avg prep time)
 - [ ] Create `OrderStatusBadge` component (color-coded pill)
 
@@ -84,9 +85,10 @@
 - [ ] Real-time updates via `onSnapshot`
 
 ### Admin Controls
-- [ ] Add status buttons to admin order list (advance one step at a time)
-- [ ] Color-code orders by status in admin view
-- [ ] Sort active orders by time (oldest first)
+- [x] Add status buttons to admin order list (advance one step at a time)
+- [x] Color-code orders by status in admin view
+- [x] Sort active orders by time (oldest first)
+- [x] Tabbed order view: Active, Pending, Preparing, Ready, All
 
 ### Auth Polish
 - [ ] Add `RequireAuth` route guard component
@@ -198,7 +200,7 @@
 
 ## Meta
 
-- **Current phase:** Phase 0 (not started)
+- **Current phase:** Phase 1 (in progress)
 - **Last updated:** 2026-05-15
-- **Sessions worked:** 1
-- **Blocked on:** Firebase project setup (user to provide)
+- **Sessions worked:** 3
+- **Blocked on:** Firestore security rules for guest writes

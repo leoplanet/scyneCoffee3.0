@@ -6,6 +6,7 @@ import App from "./App.tsx";
 import { AuthProvider } from "./contexts/AuthProvider.tsx";
 import { CartProvider } from "./contexts/CartProvider.tsx";
 import { NotiProvider } from "./contexts/NotiProvider.tsx";
+import { CustomerProvider } from "./contexts/CustomerProvider.tsx";
 import ToastProvider from "./components/shared/ToastProvider.tsx";
 import { theme } from "./theme/theme.ts";
 
@@ -14,13 +15,15 @@ createRoot(document.getElementById("root")!).render(
     <MUIThemeProvider theme={theme}>
       <CssBaseline />
       <ToastProvider>
-        <AuthProvider>
-          <CartProvider>
-            <NotiProvider>
-              <App />
-            </NotiProvider>
-          </CartProvider>
-        </AuthProvider>
+        <CustomerProvider>
+          <AuthProvider>
+            <CartProvider>
+              <NotiProvider>
+                <App />
+              </NotiProvider>
+            </CartProvider>
+          </AuthProvider>
+        </CustomerProvider>
       </ToastProvider>
     </MUIThemeProvider>
   </StrictMode>

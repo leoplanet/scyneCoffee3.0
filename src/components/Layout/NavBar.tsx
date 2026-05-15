@@ -1,114 +1,116 @@
 import { useAuth } from "../../contexts/AuthContext";
+import { useCustomer } from "../../contexts/CustomerContext";
 import { useNavigate } from "react-router-dom";
 import Cart from "../Cart";
-import { Box, Button } from "@mui/material";
-import packageJson from "../../../package.json";
+import { Box, Button, Typography, Stack, IconButton, Menu, MenuItem, Avatar } from "@mui/material";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { useState } from "react";
 
 export default function NavBar() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { customerName } = useCustomer();
   const navigate = useNavigate();
-  const handleNavigate = () => {
-    navigate("/login");
-  };
-  // const handleLogout = () => {
-  //   logout();
-  //   navigate("/login");
-  // };
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
-  // const disPlayName = user?.displayName ? user.displayName : user?.email;
+  const displayName = user?.displayName || user?.email?.split("@")[0] || customerName;
 
-  return user ? (
-    <div className="navBar-left" 
-      style={{
-        height: "40px",
+  return (
+    <Box
+      sx={{
+        height: 40,
         display: "flex",
         justifyContent: "space-between",
-        zIndex: "1000",
-        width:"100%"
-      }}
-    >
-      <Box sx={{ textAlign: "center" }}>
-        <img
-          src="https://cdn.prod.website-files.com/650aedb6397a7021a593e810/672ac5664163926064db6bd7_scyne-logo.svg"
-          alt="Scyne Logo"
-          style={{ height: "30px", width: "auto", paddingLeft: "10px", marginTop:"5px" }}
-        />
-      </Box>
-
-      <div className="navBar-right"
-        style={{
-          color: "white",
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "5px",
-          alignItems: "center",
-          paddingRight: "10px",
-        }}
-      >
-        <span>
-          {/* Happy New Year! {disPlayName?.toUpperCase()} */}
-        </span>
-        <Cart />
-        {/* <Button
-          sx={{
-            backgroundColor: "#7069d5ff",
-            color: "white",
-            borderColor: "white",
-            marginTop: "5px",
-            height: "25px",
-            "&:hover": {
-              backgroundColor: "#01051bff",
-              color: "white",
-            },
-          }}
-          variant="outlined"
-          size="small"
-          color="primary"
-          onClick={handleLogout}
-        >
-          Logout
-        </Button> */}
-        <p>Version: {packageJson.version} </p>
-      </div>
-    </div>
-  ) : (
-    <div
-      style={{
+        alignItems: "center",
         width: "100%",
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "20px",
-        marginRight: "10px",
-        backgroundColor: "rgba(219, 218, 228, 0)",
-        zIndex: "1000",
       }}
     >
-      <Box sx={{ textAlign: "center" }}>
+      {/* Logo */}
+      <Box
+        sx={{ cursor: "pointer" }}
+        onClick={() => navigate("/")}
+      >
         <img
           src="https://cdn.prod.website-files.com/650aedb6397a7021a593e810/672ac5664163926064db6bd7_scyne-logo.svg"
           alt="Scyne Logo"
-          style={{ height: "30px", width: "auto", paddingLeft: "10px", marginTop:"5px" }}
+          style={{ height: "30px", width: "auto" }}
         />
       </Box>
-      <Button
-          sx={{
-            backgroundColor: "#7069d5ff",
-            color: "white",
-            borderColor: "white",
-            marginTop: "5px",
-            height: "25px",
-            "&:hover": {
-              backgroundColor: "#01051bff",
+
+      {/* Right side */}
+      <Stack direction="row" spacing={1} alignItems="center">
+        {/* Customer Name (desktop) */}
+        {displayName && (
+          <Typography
+            variant="body2"
+            sx={{
               color: "white",
-            },
-          }}
-          variant="outlined"
-          size="small"
-          color="primary"
-          onClick={handleNavigate}
-        >
-          Login
-        </Button>
-    </div>
+              display: { xs: "none", sm: "block" },
+              maxWidth: 120,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Hi, {displayName}
+          </Typography>
+        )}
+
+        {/* Cart Icon */}
+        <Cart />
+
+        {/* User Menu */}
+        {user ? (
+          <>
+            <IconButton
+              size="small"
+              onClick={(e) => setMenuAnchor(e.currentTarget)}
+              sx={{ color: "white" }}
+            >
+              <Avatar sx={{ width: 28, height: 28, bgcolor: "primary.main" }}>
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="" style={{ width: "100%", borderRadius: "50%" }} />
+                ) : (
+                  <PersonOutlineIcon fontSize="small" />
+                )}
+              </Avatar>
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={() => setMenuAnchor(null)}
+            >
+              <MenuItem onClick={() => {
+                setMenuAnchor(null);
+                navigate("/orders");
+              }}>
+                My Orders
+              </MenuItem>
+              <MenuItem onClick={() => {
+                setMenuAnchor(null);
+                logout();
+                navigate("/");
+              }}>
+                <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
+                Logout
+              </MenuItem>
+            </Menu>
+          </>
+        ) : (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => navigate("/login")}
+            sx={{
+              color: "white",
+              borderColor: "rgba(255,255,255,0.3)",
+              "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" },
+            }}
+          >
+            Login
+          </Button>
+        )}
+      </Stack>
+    </Box>
   );
 }

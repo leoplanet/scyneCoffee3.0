@@ -62,6 +62,7 @@ export default function CoffeeModal({
           : 0,
       isHot: data.isIced ? false : true,
       isCompleted: false,
+      price: 0,
     };
     addToCart(order);
     reset();

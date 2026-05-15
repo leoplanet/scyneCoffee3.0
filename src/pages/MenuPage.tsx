@@ -1,50 +1,44 @@
+import { useEffect, useState, useCallback } from "react";
+import { useCart } from "../contexts/CartContext";
+import { useCustomer } from "../contexts/CustomerContext";
+import { useToast } from "../components/shared/ToastProvider";
 import { db } from "../services/firebase";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { useEffect } from "react";
-import { useState } from "react";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import type { Coffee } from "../types/coffee";
+import type { OrderItem } from "../types/order";
 import MenuItemCard from "../components/MenuItemCard";
 import CoffeeModal from "../components/forms/CoffeeModal";
-import CartModal from "../components/CartModal";
-import { useCart } from "../contexts/CartContext";
-import OrderConfirmedModal from "../components/OrderConfirmedModal";
+import CartDrawer from "../components/CartDrawer";
 import MenuSearchbar from "../components/MenuSearchbar";
+import LoadingSpinner from "../components/shared/LoadingSpinner";
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  Stack,
+} from "@mui/material";
+import HistoryIcon from "@mui/icons-material/History";
 
 export default function MenuPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [menuItems, setMenuItems] = useState<Coffee[]>([]);
-  const [selectedItem, setSelectedItem] = useState<Coffee>();
-  const { isCartOpen, toggleCart } = useCart();
-  const [maxPupularity, setMaxPopularity] = useState(0);
-  const [isOrderConfirmed, setIsOrderCnfirmed] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Coffee | null>(null);
   const [filteredItems, setFilteredItems] = useState<Coffee[]>([]);
+  const [maxPopularity, setMaxPopularity] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const onSearch = (term: string) => {
-      term= term.trim();
-      if(!term){
-        return;
-      } 
-      const lower = term.toLowerCase();
-      const result = menuItems.filter(
-        item => item.name.toLowerCase().includes(lower) || 
-                item.description.toLowerCase().includes(lower) ||
-                item.category.toLowerCase().includes(lower) ||
-                item.tags?.forEach(
-                  (tag) => {
-                    tag.includes(lower)
-                  }
-                )
-      )
-      setFilteredItems(result);
-  }
+  const { addToCart, openCart } = useCart();
+  const { customerName, lastOrder } = useCustomer();
+  const { showToast } = useToast();
 
+  // Real-time menu fetch
+  useEffect(() => {
+    const menuCollection = collection(db, "coffee");
+    const q = query(menuCollection, orderBy("category", "asc"), orderBy("popularity", "desc"));
 
-  const fetchMenuItems = async () => {
-    try {
-      const menuCollection = collection(db, "coffee");
-      const q = query(menuCollection, orderBy("category", "asc"), orderBy("popularity", "desc"));
-      const menuSnapshot = await getDocs(q);
-      const menuList: Coffee[] = menuSnapshot.docs.map((doc) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const menuList: Coffee[] = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -53,7 +47,6 @@ export default function MenuPage() {
           category: data.category,
           imageUrl: data.imageUrl,
           isAvailable: data.isAvailable,
-          // isDecaf:data.isDecaf,
           tags: data.tags,
           popularity: data.popularity,
           hotOnly: data.hotOnly,
@@ -62,57 +55,164 @@ export default function MenuPage() {
       });
       setMenuItems(menuList);
       setFilteredItems(menuList);
-      //get max popularity
+
       const maxPop = menuList.reduce(
         (max, item) => (item.popularity > max ? item.popularity : max),
         0
       );
       setMaxPopularity(maxPop);
-    } catch (error) {
-      console.error("Error fetching menu items: ", error);
-    }
-  };
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching menu:", error);
+      showToast("Failed to load menu. Check Firestore indexes.", "error");
+      setLoading(false);
+    });
 
-  useEffect(() => {
-    fetchMenuItems();
-  }, []);
+    return () => unsubscribe();
+  }, [showToast]);
 
-  useEffect(() => {
-    if (isCartOpen) {
-      setIsModalOpen(false);
+  // Search
+  const onSearch = useCallback((term: string) => {
+    term = term.trim();
+    if (!term) {
+      setFilteredItems(menuItems);
+      return;
     }
-  }, [isCartOpen]);
+    const lower = term.toLowerCase();
+    const result = menuItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(lower) ||
+        item.description.toLowerCase().includes(lower) ||
+        item.category.toLowerCase().includes(lower) ||
+        (item.tags && item.tags.some((tag) => tag.toLowerCase().includes(lower)))
+    );
+    setFilteredItems(result);
+  }, [menuItems]);
+
+  // Quick-add: add default item to cart
+  const handleQuickAdd = useCallback((coffee: Coffee) => {
+    const item: OrderItem = {
+      coffeeId: coffee.id,
+      title: coffee.name,
+      isHot: !coffee.hotOnly,
+      isXHot: false,
+      isIced: false,
+      isDecaf: false,
+      strength: 1,
+      milk: coffee.defaultMilk || "none",
+      quantity: 1,
+      isCompleted: false,
+      extraWater: 0,
+      teaBags: 0,
+      sugar: 0,
+      sweetner: 0,
+      price: 0,
+    };
+    addToCart(item);
+    showToast(`${coffee.name} added to cart`, "success");
+  }, [addToCart, showToast]);
+
+  // Order Again from last order
+  const handleOrderAgain = useCallback(() => {
+    if (!lastOrder) return;
+    lastOrder.items.forEach((item) => {
+      addToCart({
+        ...item,
+        isCompleted: false,
+      });
+    });
+    showToast(`Last order added to cart (${lastOrder.items.length} items)`, "success");
+    openCart();
+  }, [lastOrder, addToCart, showToast, openCart]);
 
   return (
-    <div>
-    <OrderConfirmedModal open={isOrderConfirmed} onClose={() => setIsOrderCnfirmed(false)}></OrderConfirmedModal>
-    {isCartOpen && <CartModal isOpen={isCartOpen} onClose={toggleCart} handleConfirmedModal={() => {setIsOrderCnfirmed(true)}}/>}
-      {isModalOpen && (
+    <Box sx={{ pb: 4 }}>
+      {/* Last Order Banner */}
+      {lastOrder && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            mb: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            border: "1px solid",
+            borderColor: "primary.main",
+            borderRadius: 2,
+          }}
+        >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <HistoryIcon color="primary" />
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Welcome back, {customerName}!
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Last order: {lastOrder.items.map((i) => i.title).join(", ")}
+              </Typography>
+            </Box>
+          </Stack>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleOrderAgain}
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            Order Again
+          </Button>
+        </Paper>
+      )}
+
+      {/* Search */}
+      <Box sx={{ mb: 2 }}>
+        <MenuSearchbar onSearch={onSearch} />
+      </Box>
+
+      {/* Menu Grid */}
+      {loading ? (
+        <LoadingSpinner />
+      ) : filteredItems.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
+          <Typography>No items found.</Typography>
+        </Box>
+      ) : (
+        <Box className="menu-grid">
+          {filteredItems.map((item) => (
+            <MenuItemCard
+              key={item.id}
+              coffee={item}
+              maxPopularity={maxPopularity}
+              onSelect={() => {
+                if (item.isAvailable) {
+                  setSelectedItem(item);
+                  setIsModalOpen(true);
+                }
+              }}
+              onQuickAdd={() => {
+                if (item.isAvailable) {
+                  handleQuickAdd(item);
+                }
+              }}
+            />
+          ))}
+        </Box>
+      )}
+
+      {/* Coffee Customization Modal */}
+      {isModalOpen && selectedItem && (
         <CoffeeModal
-          coffee={selectedItem || null}
+          coffee={selectedItem}
           isOpen={true}
           onClose={() => {
             setIsModalOpen(false);
+            setSelectedItem(null);
           }}
         />
       )}
-    <div>
-      <div><MenuSearchbar onSearch={onSearch} ></MenuSearchbar></div>
-      <div className="menu-grid">
-        {filteredItems.map((item) => (
-        <MenuItemCard
-          key={item.id}
-          coffee={item}
-          maxPopularity={maxPupularity}
-          onSelect={() => {
-            setIsModalOpen(true);
-            setSelectedItem(item);
-          }}
-        />
-      ))}</div>
 
-      
-    </div>
-    </div>
+      {/* Cart Drawer */}
+      <CartDrawer />
+    </Box>
   );
 }

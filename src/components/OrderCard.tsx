@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Order } from "../types/order";
+import type { Order, OrderStatus } from "../types/order";
 import { db } from "../services/firebase";
 import { updateDoc, doc, writeBatch, increment } from "firebase/firestore";
 import {
@@ -11,31 +11,52 @@ import {
   Paper,
   CircularProgress,
   Stack,
+  Chip,
+  Divider,
 } from "@mui/material";
 
-export default function OrderCard({ order }: { order: Order }) {
-  const { customerName, id, items, isCompleted } = order;
-  const [updating, setUpdating] = useState(false);
-  const [done, setDone] = useState(isCompleted);
+const STATUS_CONFIG: Record<OrderStatus, { label: string; color: "default" | "primary" | "success" | "warning" }> = {
+  pending: { label: "Pending", color: "default" },
+  preparing: { label: "Preparing", color: "warning" },
+  ready: { label: "Ready", color: "primary" },
+  completed: { label: "Completed", color: "success" },
+};
 
-  const updateOrderInfo = async (orderId: string) => {
-    if (!orderId) return;
+const STATUS_FLOW: OrderStatus[] = ["pending", "preparing", "ready", "completed"];
+
+export default function OrderCard({ order }: { order: Order }) {
+  const { customerName, id, items, status } = order;
+  const [updating, setUpdating] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(status || "pending");
+
+  const statusIndex = STATUS_FLOW.indexOf(currentStatus);
+  const isComplete = currentStatus === "completed";
+
+  const advanceStatus = async (orderId: string) => {
+    if (!orderId || isComplete) return;
+    const nextIndex = statusIndex + 1;
+    if (nextIndex >= STATUS_FLOW.length) return;
 
     setUpdating(true);
     try {
       const orderRef = doc(db, "orders", orderId);
-      await updateDoc(orderRef, { isCompleted: true });
-      setDone(true);
+      const newStatus = STATUS_FLOW[nextIndex];
+      await updateDoc(orderRef, {
+        status: newStatus,
+        isCompleted: newStatus === "completed",
+      });
+      setCurrentStatus(newStatus);
 
-      //batch update popularity
-      const batch = writeBatch(db);
-      order.items.forEach((item) => {
-      if (!item.coffeeId) return;
-      const coffeeRef = doc(db, "coffee", item.coffeeId);
-      batch.update(coffeeRef, { popularity: increment(item.quantity) });
-    });
-    await batch.commit();
-
+      // On completion, batch update popularity
+      if (newStatus === "completed") {
+        const batch = writeBatch(db);
+        items.forEach((item) => {
+          if (!item.coffeeId) return;
+          const coffeeRef = doc(db, "coffee", item.coffeeId);
+          batch.update(coffeeRef, { popularity: increment(item.quantity) });
+        });
+        await batch.commit();
+      }
     } catch (error) {
       console.error("Error updating order:", error);
     } finally {
@@ -43,102 +64,82 @@ export default function OrderCard({ order }: { order: Order }) {
     }
   };
 
+  const nextStatusLabel = isComplete ? "Completed" : STATUS_FLOW[statusIndex + 1]?.replace("-", " ") || "Complete";
+
   return (
     <Card
       sx={{
-        mb: 3,
+        mb: 2,
         borderRadius: 3,
         boxShadow: 3,
         p: 2,
       }}
     >
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Customer: {customerName}
-        </Typography>
+      <CardContent sx={{ p: 0 }}>
+        {/* Header */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+          <Typography variant="h6">
+            {customerName}
+          </Typography>
+          <Chip
+            label={STATUS_CONFIG[currentStatus]?.label || currentStatus}
+            color={STATUS_CONFIG[currentStatus]?.color || "default"}
+            size="small"
+            sx={{ fontWeight: 600 }}
+          />
+        </Box>
 
-        <Typography variant="subtitle1" fontWeight="bold">
-          Ordered Drink(s)
-        </Typography>
-
-        <Stack spacing={1} sx={{ mt: 1 }}>
+        {/* Items */}
+        <Stack spacing={1}>
           {items.map((item, index) => (
             <Paper
               key={`${item.title}-${index}`}
               sx={{
                 p: 1.5,
                 borderRadius: 2,
+                bgcolor: "action.hover",
               }}
             >
-              <Typography variant="subtitle2">
-                Item {index + 1}: {item.title}
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {item.title}
+                {item.quantity > 1 && <Typography component="span" sx={{ ml: 1, opacity: 0.7 }}>×{item.quantity}</Typography>}
               </Typography>
 
-              <Box sx={{ pl: 1 }}>
-                {item.strength ? (
-                  <Typography variant="body2">
-                    ☕Strength: {item.strength}
-                  </Typography>
-                ) : item.teaBags ? (
-                  <Typography variant="body2">
-                    Tea Bags: {item.teaBags}
-                  </Typography>
-                ) : null}
-
-                <Typography variant="body2">
-                  🥛Milk: {item.milk || "none"}
-                </Typography>
-
-
-
-                {item.sugar > 0 && (
-                  <Typography variant="body2">🍭Sugar: {item.sugar} {"🍭".repeat(item.sugar)}</Typography>
-                )}
-                {item.sweetner > 0 && (
-                  <Typography variant="body2">
-                    🍬Sweetener: {item.sweetner} {"🍬".repeat(item.sweetner)}
-                  </Typography>
-                )}
-
-                {item.isDecaf && <Typography color="primary" variant="body2">
-                    🛑Decaf
-                  </Typography>}
-                {item.isIced && (
-                  <Typography color="primary" variant="body2">
-                    🧊 Iced
-                  </Typography>
-                )}
-                {item.isXHot && (
-                  <Typography color="error" variant="body2">
-                    🔥 Extra Hot
-                  </Typography>
-                )}
-
-                <Typography fontWeight="bold" variant="body2">
-                  📈Quantity: {item.quantity}
-                </Typography>
+              <Box sx={{ pl: 1, mt: 0.5 }}>
+                <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                  {item.isIced && <Typography variant="body2">🧊 Iced</Typography>}
+                  {!item.isIced && item.isXHot && <Typography variant="body2" color="error">🔥 Extra Hot</Typography>}
+                  {item.isDecaf && <Typography variant="body2">🛑 Decaf</Typography>}
+                  {item.milk !== "none" && <Typography variant="body2">🥛 {item.milk}</Typography>}
+                </Stack>
+                <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+                  {item.strength && item.strength !== 1 && (
+                    <Typography variant="body2">☕ Strength: {item.strength}</Typography>
+                  )}
+                  {item.teaBags > 0 && <Typography variant="body2">🍵 Bags: {item.teaBags}</Typography>}
+                  {item.sugar > 0 && <Typography variant="body2">🍭 Sugar: {item.sugar}</Typography>}
+                  {item.sweetner > 0 && <Typography variant="body2">🍬 Sweetener: {item.sweetner}</Typography>}
+                </Stack>
               </Box>
             </Paper>
           ))}
         </Stack>
 
-        <Typography
-          variant="caption"
-          display="block"
-          sx={{ mt: 1, color: "text.secondary" }}
-        >
-          Order ID: {id}
-        </Typography>
+        <Divider sx={{ my: 2 }} />
 
-        <Box sx={{ mt: 2 }}>
+        {/* Footer */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="caption" color="text.secondary">
+            ID: {id}
+          </Typography>
           <Button
             variant="contained"
-            color={done ? "success" : "primary"}
-            onClick={() => updateOrderInfo(id || "")}
-            disabled={updating || done}
-            startIcon={updating && <CircularProgress size={16} />}
+            size="small"
+            onClick={() => advanceStatus(id || "")}
+            disabled={updating || isComplete}
+            startIcon={updating && <CircularProgress size={16} color="inherit" />}
           >
-            {done ? "Completed" : "Mark as Done"}
+            {isComplete ? "✓ Completed" : `Mark as ${nextStatusLabel}`}
           </Button>
         </Box>
       </CardContent>
