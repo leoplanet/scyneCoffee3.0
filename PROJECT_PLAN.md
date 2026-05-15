@@ -2,116 +2,182 @@
 
 > **Forked from:** [FeiCoding000/scyneCoffee2.0](https://github.com/FeiCoding000/scyneCoffee2.0)
 > **Your repo:** [leoplanet/scyneCoffee3.0](https://github.com/leoplanet/scyneCoffee3.0)
+> **Local path:** `/home/leo/scyneCoffee3.0`
 > **Started:** 2026-05-15
 
 ---
 
 ## 1. What the App Is (v2 Baseline)
 
-A **coffee ordering web app** for a café/school setting. Users browse the menu, build an order in a cart, and submit. Admins manage menu items, view statistics, and push notifications.
+A **coffee ordering web app** for a café/school. Users browse the menu, build a cart, and submit an order. Admins manage menu items, view basic statistics (line chart + pie chart), and push notifications.
 
 ### Current Architecture (v2)
 
 | Area | Stack |
 |------|-------|
 | Frontend | React 19 + TypeScript + Vite 7 |
-| UI Library | MUI (Material UI) 7 + Emotion |
+| UI | MUI 7 + Emotion |
 | Auth | Firebase Auth (Google + Email/Password) |
-| Database | Firebase Firestore |
+| DB | Firebase Firestore (one-shot `getDocs`, no real-time) |
 | Charts | ECharts + MUI X-Charts |
 | Forms | react-hook-form + Zod 4 |
 | Routing | react-router-dom 7 |
 | State | React Context (Auth, Cart, Notification) |
-| Deploy | GitHub Pages (SPA on gh-pages branch) |
-| CI/CD | GitHub Actions (deploy.yml) |
+| Deploy | GitHub Pages (SPA on `gh-pages` branch) |
 | Testing | Vitest + Playwright + Storybook 10 |
 
 ### Current Pages
 
 | Route | Page | Purpose |
 |-------|------|---------|
-| `/` | HomePage | Landing, login/start |
+| `/` | HomePage | Landing — "Welcome, start your order" button |
 | `/login` | LoginPage | Google + Email login |
-| `/menu` | MenuPage | Browse coffees, add to cart |
+| `/menu` | MenuPage | Grid of coffees, add to cart |
 | `/orders` | OrderPage | View placed orders |
-| `/admin` | AdminPage | CRUD coffees, notifications |
-| `/statistic` | StatisticPage | Sales charts (line + pie) |
+| `/admin` | AdminPage | Add coffee, create/clear notifications |
+| `/statistic` | StatisticPage | Line chart (daily data) + pie chart (milk types) |
 | `/bugreport` | BugReportPage | Submit bug reports |
 | `/news` | News | View notifications/news |
 
-### Current Issues (v2 Audit)
+### v2 Problems (Audited)
 
-- **No real-time updates** — Firestore queries are one-shot `getDocs`, no `onSnapshot`
-- **No offline support** — no PWA, no cache
-- **Admin has no auth guard** — anyone can hit `/admin` if they know the route
-- **Inline styles** scattered across components (HomePage, etc.)
+- **Ordering requires login first** — guest can't order without creating an account
+- **No name capture** — orders identified by email only, hard to call out at counter
+- **Cart lost on refresh** — no persistence
+- **No reorder** — every order starts from scratch
+- **No real-time** — all Firestore reads are one-shot, no live updates
+- **No order status** — customer has no idea if their order is being prepared
+- **Admin stats are basic** — static charts, no date filter, no revenue numbers, no export
+- **Admin has no auth guard** — `/admin` is public if you know the URL
+- **No image upload** — coffee images are hardcoded URLs
+- **Inline styles** scattered across components
 - **No error boundaries** — unhandled errors crash the whole app
-- **No loading states** visible in many data-fetching flows
-- **Cart persists only in memory** — refresh = lost cart
-- **No password reset** flow in email auth
-- **No image upload** — coffee images are likely hardcoded URLs
-- **Statistics page** has no date filtering or export
-- **Deploy** uses older action versions (checkout@v3, setup-node@v3)
-- **No env.example file** — onboarding requires guessing env vars
+- **No loading states** — blank screens while data loads
 
 ---
 
 ## 2. Vision for v3.0
 
-Make the app **production-ready, polished, and extensible** while keeping the same core purpose. Work in phases so progress is visible and testable at each step.
+Two radical improvements, everything else supports them:
 
-### Guiding Principles
+### Goal 1: Order in 3 Steps (From Any State)
 
-- **Incremental** — each phase ships a working app
-- **Backwards compatible** — keep the same Firebase structure where possible
-- **Developer-friendly** — clear docs, env example, consistent patterns
-- **User-friendly** — real-time, offline-capable, accessible
+**Today (v2):** Login → Menu → Add to cart → Open cart → Checkout → Enter details → Confirm = **6+ steps, login required first**
+
+**Target (v3):** See menu → Add item → Confirm (name auto-filled from last order) = **3 steps, no login required**
+
+| Feature | How It Reduces Friction |
+|---------|------------------------|
+| **Guest ordering** | No login wall — order with just a name |
+| **Name-first landing** | Home page = "What's your name?" → goes straight to menu with name pre-filled |
+| **Last-order memory** | Recognized users (by name or account) see "Order again?" with their last order one-click |
+| **Quick-add buttons** | Add default coffee to cart in one tap, customize later if needed |
+| **Slide-out cart** | Cart is always accessible from nav, no page navigation |
+| **One-tap reorder** | Past orders have an "Order Again" button that pre-fills the cart |
+| **Persistent cart** | Survives refresh, survives browser close (localStorage) |
+
+### Goal 2: Real Admin Analytics Dashboard
+
+**Today (v2):** Two static charts loaded once on page visit. No context.
+
+**Target (v3):** A live dashboard that answers "How's business going right now?" at a glance.
+
+| Feature | Why It Matters |
+|---------|---------------|
+| **KPI cards at top** | Today's orders, today's revenue, avg order value, active orders count |
+| **Live order queue** | Real-time feed of incoming orders with status buttons (Pending → Preparing → Ready → Done) |
+| **Revenue chart** | Daily/weekly/monthly toggle, with comparison to previous period |
+| **Popular items** | Top 5 coffees by quantity sold, with trend arrows (up/down vs last week) |
+| **Peak hours heatmap** | Which hours are busiest (helps with staffing) |
+| **Date range picker** | Filter everything by custom date range |
+| **Export** | CSV download for any view |
+| **Kitchen display mode** | Fullscreen view of active orders, large text, auto-refresh (for the barista screen) |
 
 ---
 
 ## 3. Phases
 
-### Phase 0 — Foundation (Setup & Hygiene)
-- Rename app to "scyneCoffee 3.0" everywhere (package.json, title, basename)
-- Add `.env.example` with all required Firebase vars
-- Update deploy.yml to latest action versions (checkout@v4, setup-node@v4, deploy@v4+)
-- Add ESLint + TypeScript strictness improvements
+### Phase 0 — Foundation & Hygiene
+> Get the repo ready to build on. No user-visible changes.
+
+- Rename app to "scyneCoffee 3.0" everywhere (package.json, title, basename, homepage URL)
+- Create `.env.example` with all `VITE_FIREBASE_*` vars
+- Update GitHub Actions to latest versions
 - Add React error boundaries
-- Add loading skeletons / spinners for data fetches
+- Add shared loading skeleton/spinner components
+- Add shared toast/snackbar provider
+- Set up MUI theme provider (foundation for dark/light later)
+- `npm install` + `npm run build` passes clean
 
-### Phase 1 — Core UX Improvements
-- **Real-time Firestore** — replace `getDocs` with `onSnapshot` for menu, orders, stats
-- **Persistent cart** — save cart to localStorage (or IndexedDB via idb)
-- **Auth guards** — protect `/admin`, `/orders` with route guards
-- **Password reset** — add forgot-password flow
-- **Toasts/snackbars** — consistent feedback for all actions (order placed, error, etc.)
+### Phase 1 — Frictionless Ordering (The Big Win)
+> This is the core v3 experience. Everything a customer touches.
 
-### Phase 2 — Admin & Features
-- **Image upload** — integrate Firebase Storage for coffee images
-- **Edit/Delete coffee** — full CRUD in AdminPage (currently only create seems present)
-- **Date filtering** on statistics page
-- **Export statistics** as CSV/PDF
-- **Order status** — add status tracking (pending, preparing, ready, completed)
-- **Order notifications** — push notification when order status changes
+- **Guest ordering flow** — remove login requirement for ordering
+- **Name-first landing page** — replace "Welcome, start your order" with a name input → goes to menu
+- **Name stored in order** — every order has a `customerName` field
+- **Last-order detection** — when a name is recognized (localStorage + Firestore check), show "Your last order" card with "Order Again" button
+- **One-click reorder** — "Order Again" adds all items from last order to cart
+- **Persistent cart** — save/restore cart from localStorage on every change
+- **Slide-out cart drawer** — replace modal with a swipe-out drawer, always accessible from nav badge
+- **Quick-add on menu items** — "+" button on coffee card adds default option to cart immediately
+- **Inline customization** — tap a coffee to open a customization drawer (size, milk, extras) without leaving the menu
+- **Order confirmation with order number** — show a clear confirmation screen with a large order number for counter pickup
+- **Real-time Firestore** — switch all reads to `onSnapshot` for live updates
 
-### Phase 3 — Polish & Performance
-- **PWA** — add manifest, service worker (vite-plugin-pwa), offline fallback
-- **Dark/light theme toggle** — with MUI theme provider
-- **Accessibility audit** — keyboard nav, ARIA labels, contrast
-- **Performance** — code splitting, lazy loading routes, image optimization
-- **Analytics** — add basic page-view tracking (optional, privacy-respecting)
+### Phase 2 — Order Status & Communication
+> Close the loop between ordering and pickup.
 
-### Phase 4 — Testing & CI/CD
-- **Component tests** — add Vitest tests for key components (Cart, Order, Auth)
-- **E2E tests** — Playwright smoke tests for critical paths
-- **Storybook** — ensure all components have stories
-- **CI checks** — lint, type-check, and test in GitHub Actions before deploy
-- **Pre-release staging** — deploy to a separate branch for preview
+- **Order status enum** — `pending` → `preparing` → `ready` → `completed`
+- **Status shown to customer** — after ordering, show current status with visual progress
+- **Order tracking page** — enter name or order number to see status (no login needed)
+- **Admin status controls** — buttons in admin to advance order status
+- **In-app notifications** — toast when order status changes (for logged-in users)
+- **Password reset flow** — for email auth users
+- **Auth route guards** — protect admin/stats routes
 
-### Phase 5 — Documentation
-- **README.md** — full project docs, setup instructions, architecture overview
-- **API/docs** — Firebase schema documentation
-- **Contributing guide** — code style, commit conventions
+### Phase 3 — Admin Analytics Dashboard
+> The operational brain of the café.
+
+- **KPI cards** — today's orders, today's revenue, avg order value, active orders
+- **Revenue line chart** — with daily/weekly/monthly toggle and period comparison
+- **Popular items ranking** — top coffees by volume, with week-over-week trend
+- **Peak hours heatmap/bar chart** — orders by hour of day
+- **Live order queue** — real-time list of pending/active orders with status buttons
+- **Date range picker** — filter all charts by custom range
+- **CSV export** — download orders, revenue, or any filtered view
+- **Kitchen display mode** — fullscreen `/admin/kitchen` route with large-order display, auto-refresh
+- **Full coffee CRUD** — edit and delete existing coffees (admin page)
+- **Firebase Storage integration** — upload coffee images via admin
+
+### Phase 4 — Polish & Reliability
+> Make it feel like a finished product.
+
+- **PWA** — `vite-plugin-pwa`, manifest, service worker, offline fallback page
+- **Dark/light theme toggle** — with localStorage persistence
+- **Accessibility audit** — keyboard navigation, ARIA labels, contrast check
+- **Code splitting** — `React.lazy` + `Suspense` on heavy routes (admin, stats)
+- **Empty states** — illustrations + helpful text for "no orders", "no menu items", etc.
+- **Error recovery** — retry buttons on failed fetches, graceful degradation
+- **Bug report improvements** — add screenshot capture, better form validation
+- **News/announcements** — styled banner at top of menu for promotions
+
+### Phase 5 — Testing & CI
+> Confidence for every deploy.
+
+- **Unit tests** — CartContext (add/remove/clear/persist), AuthContext, order creation logic
+- **Component tests** — MenuItemCard, OrderCard, CartDrawer, NameInput
+- **E2E tests (Playwright)** — guest order flow, login flow, reorder flow, admin status update
+- **Storybook** — stories for all shared components
+- **CI pipeline** — lint + type-check + test as separate job, deploy only on green
+- **Staging deploy** — `develop` branch deploys to a preview URL
+
+### Phase 6 — Documentation
+> Make it maintainable.
+
+- **README.md** — description, features, setup steps, architecture
+- **Firebase schema doc** — collections, fields, security rules
+- **CHANGELOG.md** — track changes between versions
+- **CONTRIBUTING.md** — code style, commit conventions
 
 ---
 
@@ -122,51 +188,98 @@ Make the app **production-ready, polished, and extensible** while keeping the sa
 | Bundler | Vite 7 | Vite 7 (keep) |
 | Framework | React 19 | React 19 (keep) |
 | UI | MUI 7 + Emotion | MUI 7 + Emotion (keep, add theme toggle) |
-| Auth | Firebase Auth | Firebase Auth + password reset + route guards |
-| DB | Firestore (getDocs) | Firestore (onSnapshot real-time) |
-| Storage | None | Firebase Storage (images) |
-| PWA | None | vite-plugin-pwa |
-| State | Context | Context + TanStack Query (for server state) |
+| Auth | Firebase Auth | Firebase Auth + guest mode + password reset |
+| DB | Firestore (getDocs) | Firestore (onSnapshot real-time throughout) |
+| Storage | None | Firebase Storage (Phase 3, coffee images) |
+| PWA | None | vite-plugin-pwa (Phase 4) |
+| State | Context only | Context + TanStack Query (for server state + caching) |
 | Forms | react-hook-form + Zod 4 | Same |
+| Routing | react-router-dom 7 | Same + route guards |
 | Testing | Vitest + Playwright + Storybook | Same (add actual tests) |
 | Deploy | GitHub Pages | GitHub Pages + staging branch |
 
+### New Dependencies (planned)
+
+| Package | Purpose | Phase |
+|---------|---------|-------|
+| `@tanstack/react-query` | Server state, caching, real-time polling | 1 |
+| `react-error-boundary` | Graceful error recovery | 0 |
+| `vite-plugin-pwa` | PWA manifest + service worker | 4 |
+| `date-fns` | Date formatting, range picking | 3 |
+| `papaparse` | CSV export | 3 |
+
 ---
 
-## 5. Firebase Schema (Current)
+## 5. Firebase Schema (Planned Changes)
 
 ```
 coffee/
   {id}/
-    name, description, price, category, imageUrl, createdAt, ...
+    name, description, price, category, imageUrl, createdAt, updatedAt, isActive
 
 orders/
   {id}/
-    userId, userEmail, items[], total, status, timestamp, ...
+    customerId          # new: user ID if logged in, null if guest
+    customerName        # new: always present, used for counter call-out
+    userEmail           # optional, only if logged in
+    items[]             # [{coffeeId, name, price, customizations{}}]
+    total
+    status              # new: pending | preparing | ready | completed
+    timestamp
+    estimatedReadyTime  # new: calculated from timestamp + queue position
 
-notifications/
-  {id}/
-    title, message, timestamp, readBy[], ...
+users/                 # new collection
+  {id or hashed name}/
+    name
+    lastOrderId
+    orderCount
+    joinedAt
+```
 
-bugreports/
-  {id}/
-    userId, userEmail, description, timestamp, status, ...
+**Key schema changes from v2:**
+- `customerName` on every order (was: email only)
+- `status` field on orders (was: no status tracking)
+- `users` collection for tracking last orders by name
+- `customizations` object on order items (was: flat items)
+- `isActive` flag on coffee (for soft-deleting menu items)
 
-news/
-  {id}/
-    title, content, timestamp, ...
+---
+
+## 6. User Flows (v3 Target)
+
+### Happy Path: Guest Order (3 steps)
+```
+1. Land on app → "What's your name?" → type "Leo" → Enter
+2. See menu → tap "+" on a coffee → cart badge shows "1"
+3. Tap cart badge → review → "Place Order" → "Order #042 — Ready in ~5 min"
+```
+
+### Happy Path: Returning Customer (2 steps)
+```
+1. Land on app → "What's your name?" → type "Leo" → Enter
+2. See "Welcome back, Leo! Your last order: Flat White ×2. Order again?" → tap "Order Again" → confirm
+```
+
+### Admin: Order Management (live)
+```
+1. Open /admin → see KPI cards + live order queue
+2. New order appears → tap "Preparing" → when done, tap "Ready"
+3. Customer sees status update in real-time
 ```
 
 ---
 
-## 6. Risks & Considerations
+## 7. Risks & Considerations
 
-- **Firebase project** — you need your own Firebase project or access to the original. The env vars in deploy.yml are stored as repo secrets.
-- **Breaking changes** — if the original app is in active use, coordinate any schema changes.
-- **GitHub Pages** — SPA routing requires the 404.html workaround (already in place).
+- **Firebase project** — needs to be set up before Phase 1 (auth + Firestore)
+- **Guest orders without auth** — means we rely on `customerName` for identification, which can have collisions (two "Leos"). Mitigation: order numbers for counter call-out
+- **Firestore cost** — `onSnapshot` on every page means more read operations. Mitigation: limit collection queries, use composite indexes, monitor usage
+- **GitHub Pages SPA routing** — already handled with 404.html trick, keep this
+- **Breaking from v2** — if original app is in use, coordinate schema changes. Since this is a fork, we own the breaking changes
 
 ---
 
-## 7. Session Notes
+## 8. Session Notes
 
-- **2026-05-15**: Fork created, baseline audit done, plan drafted. Next: Phase 0.
+- **2026-05-15**: Fork created. Baseline audit done. Plan v1 drafted.
+- **2026-05-15**: Plan rewritten with focus on frictionless ordering + admin analytics. Awaiting Firebase setup and green light.
