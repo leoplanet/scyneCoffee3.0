@@ -6,19 +6,19 @@
 
 ## Phase 0 — Foundation & Hygiene
 
-- [ ] Rename package.json: name → "scyencoffee-3.0", version → "3.0.0"
-- [ ] Update Router basename: `/scyneCoffee2.0` → `/scyneCoffee3.0`
-- [ ] Update homepage URL in package.json
-- [ ] Update `<title>` in index.html
-- [ ] Create `.env.example` with all `VITE_FIREBASE_*` vars
-- [ ] Add `.env.local` to `.gitignore`
-- [ ] Update deploy.yml: checkout@v4, setup-node@v4, gh-pages-deploy@v7
-- [ ] Install `react-error-boundary`, wrap Routes with ErrorBoundary
-- [ ] Create shared `LoadingSpinner` component
+- [x] Rename package.json: name → "scyencoffee-3.0", version → "3.0.0"
+- [x] Update Router basename: `/scyneCoffee2.0` → `/scyneCoffee3.0`
+- [x] Update homepage URL in package.json
+- [x] Update `<title>` in index.html
+- [x] Create `.env.example` with all `VITE_FIREBASE_*` vars
+- [x] Add `.env.local` to `.gitignore`
+- [x] Update deploy.yml: checkout@v4, setup-node@v4, peaceiris/actions-gh-pages@v4
+- [x] Install `react-error-boundary`, wrap Routes with ErrorBoundary
+- [x] Create shared `LoadingSpinner` component
 - [ ] Create shared `Skeleton` component (MUI-based)
-- [ ] Create shared `ToastProvider` (MUI Snackbar stack)
-- [ ] Set up MUI `ThemeProvider` with base theme
-- [ ] `npm install` + `npm run build` passes clean
+- [x] Create shared `ToastProvider` (MUI Snackbar stack)
+- [x] Set up MUI `ThemeProvider` with base theme
+- [x] `npm install` + `npm run build` passes clean
 
 ---
 
